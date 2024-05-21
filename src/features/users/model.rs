@@ -1,15 +1,27 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// the input to our `create_user` handler
 #[derive(Deserialize)]
 pub struct CreateUser {
-    pub username: String,
+    pub name: String,
+    pub email: String,
+    pub password: String,
+    pub avatar: Option<String>,
+    pub is_online: bool,
 }
 
-// the output to our `create_user` handler
-#[derive(Serialize)]
-pub struct User {
+#[derive(Deserialize)]
+pub struct UpdateUser {
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub avatar: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserDTO {
     pub id: Uuid,
-    pub username: String,
+    pub name: String,
+    pub email: String,
+    pub avatar: Option<String>,
+    pub is_online: bool,
 }
