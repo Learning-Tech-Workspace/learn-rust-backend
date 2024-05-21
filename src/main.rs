@@ -1,16 +1,36 @@
-pub mod features;
+use std::env;
+
+use axum::Extension;
+use dotenv::dotenv;
+
 pub mod enums;
+pub mod features;
 
 mod router;
+
 use router::create_router;
+use sea_orm::{ConnectOptions, Database};
 
 #[tokio::main]
 async fn main() {
     // initialize tracing
-    tracing_subscriber::fmt::init();
-    
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_test_writer()
+        .init();
+
+    // load environment variables from a .env file
+    dotenv().ok();
+
+    let opt = ConnectOptions::new(env::var("DATABASE_URL").unwrap());
+
+    let db_connection = match Database::connect(opt).await {
+        Ok(conn) => conn,
+        Err(e) => panic!("Error connecting to the database: {:?}", e),
+    };
+
     // build our application with a route
-    let app = create_router();
+    let app = create_router().layer(Extension(db_connection));
 
     println!("🚀 Starting server at http://localhost:3000");
 
