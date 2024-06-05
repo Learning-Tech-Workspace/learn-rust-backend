@@ -8,6 +8,7 @@ use sea_orm::{
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::error::{Error, Result};
 use crate::features::users::model::UserDTO;
 
 use super::model::{CreateGroup, GroupDTO};
@@ -17,12 +18,15 @@ use entity::{group, user, user_group};
 pub async fn create_group(
     Extension(db_connection): Extension<DatabaseConnection>,
     Json(payload): Json<CreateGroup>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse> {
     let group_model = group::ActiveModel {
         name: Set(payload.name),
         ..Default::default()
     };
-    let new_group = group_model.insert(&db_connection).await.unwrap();
+    let new_group = group_model
+        .insert(&db_connection)
+        .await
+        .map_err(|e| Error::InsertFailed(e))?;
 
     let records: Vec<user_group::ActiveModel> = payload
         .user_ids
@@ -35,34 +39,35 @@ pub async fn create_group(
 
     user_group::Entity::insert_many(records)
         .exec(&db_connection)
-        .await;
+        .await
+        .map_err(|e| Error::InsertFailed(e))?;
 
-    (
+    Ok((
         StatusCode::CREATED,
         Json(json!(
             {
                 "message": "Group created successfully"
             }
         )),
-    )
+    ))
 }
 
 pub async fn get_group_by_id(
     Extension(db_connection): Extension<DatabaseConnection>,
     Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse> {
     let group = group::Entity::find()
         .filter(Condition::all().add(group::Column::Id.eq(id)))
         .one(&db_connection)
         .await
-        .unwrap()
-        .unwrap();
+        .map_err(|e| Error::QueryFailed(e))?
+        .ok_or_else(|| Error::RecordNotFound)?;
 
     let user_ids: Vec<Uuid> = user_group::Entity::find()
         .filter(Condition::all().add(user_group::Column::GroupId.eq(group.id)))
         .all(&db_connection)
         .await
-        .unwrap()
+        .map_err(|e| Error::QueryFailed(e))?
         .into_iter()
         .map(|user_group_model| user_group_model.user_id)
         .collect();
@@ -73,8 +78,8 @@ pub async fn get_group_by_id(
             .filter(Condition::all().add(user::Column::Id.eq(user_id)))
             .one(&db_connection)
             .await
-            .unwrap()
-            .unwrap();
+            .map_err(|e| Error::QueryFailed(e))?
+            .ok_or_else(|| Error::RecordNotFound)?;
         users.push(UserDTO {
             id: user.id,
             name: user.name,
@@ -89,5 +94,5 @@ pub async fn get_group_by_id(
         users,
     };
 
-    (StatusCode::OK, Json(result))
+    Ok((StatusCode::OK, Json(result)))
 }

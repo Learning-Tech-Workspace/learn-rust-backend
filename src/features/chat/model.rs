@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Chat {
     pub user_id: Uuid,
     pub content: String,
@@ -9,7 +9,7 @@ pub struct Chat {
     pub group_id: Uuid,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Clone)]
 pub enum MessageType {
     File,
     Text,

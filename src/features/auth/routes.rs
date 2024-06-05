@@ -1,9 +1,7 @@
 use axum::{routing::post, Router};
 
-use super::handler::{login, verify};
+use super::handler::login;
 
 pub fn get_routes() -> Router {
-    Router::new()
-        .route("/login", post(login))
-        .route("/verify", post(verify))
+    Router::new().route("/login", post(login))
 }

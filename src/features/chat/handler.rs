@@ -1,49 +1,25 @@
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 
-use entity::sea_orm_active_enums::MessageEnum;
-use sea_orm::ActiveValue::Set;
-use sea_orm::{
-    ActiveModelTrait, DatabaseConnection,
-};
+use sea_orm::DatabaseConnection;
 use serde_json::json;
 
+use crate::error::Result;
 
-use entity::{conversation, message};
-
-use super::model::{Chat, MessageType};
+use super::model::Chat;
+use super::service::insert_chat;
 
 pub async fn chat(
     Extension(db_connection): Extension<DatabaseConnection>,
     Json(payload): Json<Chat>,
-) -> impl IntoResponse {
-    let message_type = match payload.message_type {
-        MessageType::File => MessageEnum::File,
-        MessageType::Text => MessageEnum::Text,
-        MessageType::Image => MessageEnum::Image,
-    };
+) -> Result<impl IntoResponse> {
+    insert_chat(db_connection, payload).await?;
 
-    let message_model = message::ActiveModel {
-        user_id: Set(payload.user_id),
-        content: Set(payload.content),
-        r#type: Set(Some(message_type)),
-        ..Default::default()
-    };
-
-    let message = message_model.insert(&db_connection).await.unwrap();
-
-    let conversation_model = conversation::ActiveModel {
-        group_id: Set(payload.group_id),
-        msg_id: Set(message.id),
-    };
-
-    conversation_model.insert(&db_connection).await.unwrap();
-
-    (
+    Ok((
         StatusCode::CREATED,
         Json(json!(
             {
                 "message": "Chat created successfully"
             }
         )),
-    )
+    ))
 }
